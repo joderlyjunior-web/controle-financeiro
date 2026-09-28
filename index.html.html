@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador Financeiro Pessoal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+  <div class="container mx-auto p-4 md:p-6 max-w-6xl">
+    <h1 class="text-3xl font-bold mb-6 text-gray-900">Controle Financeiro</h1>
+
+    <!-- Dashboard Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-green-500">
+        <p class="text-sm text-gray-500 font-semibold">Total Receitas</p>
+        <p id="totalReceitas" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-red-500">
+        <p class="text-sm text-gray-500 font-semibold">Total Despesas</p>
+        <p id="totalDespesas" class="text-2xl font-bold text-red-600">R$ 0,00</p>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500">
+        <p class="text-sm text-gray-500 font-semibold">Saldo Liquido</p>
+        <p id="saldoTotal" class="text-2xl font-bold text-blue-600">R$ 0,00</p>
+      </div>
+    </div>
+
+    <!-- Formulário e Filtros -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- Novo Lançamento -->
+      <div class="bg-white p-5 rounded-lg shadow-sm">
+        <h2 class="text-xl font-bold mb-4 text-gray-700">Novo Lançamento</h2>
+        <form id="financeForm" class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium">Descrição</label>
+            <input type="text" id="descricao" required class="w-full mt-1 p-2 border rounded-md">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-sm font-medium">Tipo</label>
+              <select id="tipo" class="w-full mt-1 p-2 border rounded-md">
+                <option value="Receita">Receita</option>
+                <option value="Despesa">Despesa</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Valor (R$)</label>
+              <input type="number" id="valor" step="0.01" required class="w-full mt-1 p-2 border rounded-md">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-sm font-medium">Recorrência</label>
+              <select id="recorrencia" class="w-full mt-1 p-2 border rounded-md">
+                <option value="Fixa">Fixa</option>
+                <option value="Periódica">Periódica</option>
+                <option value="Eventual">Eventual</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium">Categoria</label>
+              <input type="text" id="categoria" placeholder="Ex: Moradia, Salário" required class="w-full mt-1 p-2 border rounded-md">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Data</label>
+            <input type="date" id="data" required class="w-full mt-1 p-2 border rounded-md">
+          </div>
+          <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">Adicionar Transação</button>
+        </form>
+      </div>
+
+      <!-- Filtros e Gráficos -->
+      <div class="bg-white p-5 rounded-lg shadow-sm lg:col-span-2 space-y-4">
+        <h2 class="text-xl font-bold text-gray-700">Filtros & Relatórios</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Filtrar por Tipo</label>
+            <select id="filterTipo" onchange="render()" class="w-full mt-1 p-2 border rounded-md text-sm">
+              <option value="Todos">Todos os Tipos</option>
+              <option value="Receita">Receita</option>
+              <option value="Despesa">Despesa</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Filtrar por Recorrência</label>
+            <select id="filterRecorrencia" onchange="render()" class="w-full mt-1 p-2 border rounded-md text-sm">
+              <option value="Todas">Todas as Recorrências</option>
+              <option value="Fixa">Fixa</option>
+              <option value="Periódica">Periódica</option>
+              <option value="Eventual">Eventual</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500">Filtrar por Mês</label>
+            <input type="month" id="filterMes" onchange="render()" class="w-full mt-1 p-2 border rounded-md text-sm">
+          </div>
+        </div>
+
+        <div class="mt-4 h-64 flex justify-center">
+          <canvas id="financeChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela de Lançamentos -->
+    <div class="bg-white p-5 rounded-lg shadow-sm overflow-x-auto">
+      <h2 class="text-xl font-bold mb-4 text-gray-700">Histórico de Transações</h2>
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b bg-gray-50 text-gray-600 text-sm">
+            <th class="p-3">Data</th>
+            <th class="p-3">Descrição</th>
+            <th class="p-3">Categoria</th>
+            <th class="p-3">Tipo</th>
+            <th class="p-3">Recorrência</th>
+            <th class="p-3">Valor</th>
+            <th class="p-3">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="transactionTable" class="divide-y text-sm">
+          <!-- Linhas inseridas via JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let chartInstance = null;
+
+    document.getElementById('financeForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const transaction = {
+        id: Date.now(),
+        descricao: document.getElementById('descricao').value,
+        tipo: document.getElementById('tipo').value,
+        valor: parseFloat(document.getElementById('valor').value),
+        recorrencia: document.getElementById('recorrencia').value,
+        categoria: document.getElementById('categoria').value,
+        data: document.getElementById('data').value
+      };
+
+      transactions.push(transaction);
+      saveAndRender();
+      document.getElementById('financeForm').reset();
+    });
+
+    function deleteTransaction(id) {
+      transactions = transactions.filter(t => t.id !== id);
+      saveAndRender();
+    }
+
+    function saveAndRender() {
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+      render();
+    }
+
+    function getFilteredTransactions() {
+      const tipo = document.getElementById('filterTipo').value;
+      const recorrencia = document.getElementById('filterRecorrencia').value;
+      const mes = document.getElementById('filterMes').value;
+
+      return transactions.filter(t => {
+        const matchTipo = tipo === 'Todos' || t.tipo === tipo;
+        const matchRecorrencia = recorrencia === 'Todas' || t.recorrencia === recorrencia;
+        const matchMes = !mes || t.data.startsWith(mes);
+        return matchTipo && matchRecorrencia && matchMes;
+      });
+    }
+
+    function render() {
+      const filtered = getFilteredTransactions();
+      const tableBody = document.getElementById('transactionTable');
+      tableBody.innerHTML = '';
+
+      let totalRec = 0;
+      let totalDesp = 0;
+      const categoryTotals = {};
+
+      filtered.forEach(t => {
+        if (t.tipo === 'Receita') totalRec += t.valor;
+        else totalDesp += t.valor;
+
+        if (!categoryTotals[t.categoria]) categoryTotals[t.categoria] = 0;
+        categoryTotals[t.categoria] += t.valor;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="p-3">${t.data}</td>
+          <td class="p-3 font-medium">${t.descricao}</td>
+          <td class="p-3">${t.categoria}</td>
+          <td class="p-3"><span class="px-2 py-1 rounded text-xs ${t.tipo === 'Receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${t.tipo}</span></td>
+          <td class="p-3">${t.recorrencia}</td>
+          <td class="p-3 font-semibold ${t.tipo === 'Receita' ? 'text-green-600' : 'text-red-600'}">R$ ${t.valor.toFixed(2)}</td>
+          <td class="p-3"><button onclick="deleteTransaction(${t.id})" class="text-red-500 hover:text-red-700">Excluir</button></td>
+        `;
+        tableBody.appendChild(row);
+      });
+
+      // Atualiza Totais
+      document.getElementById('totalReceitas').innerText = `R$ ${totalRec.toFixed(2)}`;
+      document.getElementById('totalDespesas').innerText = `R$ ${totalDesp.toFixed(2)}`;
+      document.getElementById('saldoTotal').innerText = `R$ ${(totalRec - totalDesp).toFixed(2)}`;
+
+      renderChart(categoryTotals);
+    }
+
+    function renderChart(categoryData) {
+      const ctx = document.getElementById('financeChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(categoryData),
+          datasets: [{
+            data: Object.values(categoryData),
+            backgroundColor: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
+    }
+
+    // Inicializa
+    render();
+  </script>
+</body>
+</html>
